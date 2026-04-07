@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@supabase/ssr/package.json'\\); console.log\\(pkg.exports || pkg.main || 'no exports'\\)\")",
+      "Bash(node -e \"const m = require\\('@supabase/ssr'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(npm run:*)"
+    ]
+  }
+}

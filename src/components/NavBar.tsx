@@ -3,11 +3,18 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LayoutDashboard, PlusCircle, LogOut, Wallet } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, LogOut, Wallet, FileImage, Download } from 'lucide-react'
+
+const NAV_LINKS = [
+  { href: '/dashboard',   label: 'Dashboard', Icon: LayoutDashboard },
+  { href: '/budgets/new', label: 'New Budget', Icon: PlusCircle },
+  { href: '/receipts',    label: 'Receipts',   Icon: FileImage },
+  { href: '/export',      label: 'Export',     Icon: Download },
+]
 
 export default function NavBar() {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
   const supabase = createClient()
 
   async function signOut() {
@@ -16,21 +23,8 @@ export default function NavBar() {
     router.refresh()
   }
 
-  const link = (href: string, label: string, Icon: React.ElementType) => {
-    const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
-    return (
-      <Link
-        href={href}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-          active
-            ? 'bg-blue-50 text-blue-700'
-            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-        }`}
-      >
-        <Icon className="w-4 h-4 shrink-0" />
-        {label}
-      </Link>
-    )
+  function isActive(href: string) {
+    return pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
   }
 
   return (
@@ -44,8 +38,20 @@ export default function NavBar() {
       </Link>
 
       <nav className="flex-1 flex flex-col gap-1">
-        {link('/dashboard', 'Dashboard', LayoutDashboard)}
-        {link('/budgets/new', 'New Budget', PlusCircle)}
+        {NAV_LINKS.map(({ href, label, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive(href)
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            {label}
+          </Link>
+        ))}
       </nav>
 
       <div className="pt-4 border-t border-gray-100">

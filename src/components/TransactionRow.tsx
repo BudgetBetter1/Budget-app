@@ -20,9 +20,13 @@ export default function TransactionRow({ tx, budgetId }: Props) {
 
       {/* Vendor & notes */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-800 truncate">{tx.vendor}</p>
+        <p className="font-medium text-gray-800 truncate">
+          {tx.vendor.length > 28 ? tx.vendor.slice(0, 28) + '…' : tx.vendor}
+        </p>
         {tx.notes && (
-          <p className="text-xs text-gray-400 truncate">{tx.notes}</p>
+          <p className="text-xs text-gray-400 truncate">
+            {tx.notes.length > 40 ? tx.notes.slice(0, 40) + '…' : tx.notes}
+          </p>
         )}
       </div>
 

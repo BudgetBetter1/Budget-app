@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { createTransaction, updateTransaction } from '@/lib/actions/transactions'
-import { suggestBucket } from '@/lib/actions/ai'
+import { suggestCategory, createSuggestedCategory, CategorySuggestion } from '@/lib/actions/ai'
 import { Bucket, Transaction } from '@/lib/types'
 import { Upload, X, Sparkles, FileText, Camera } from 'lucide-react'
 
@@ -69,10 +69,12 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
   const [selectedFile, setSelectedFile]   = useState<File | null>(null)
   const [previewUrl,   setPreviewUrl]     = useState<string | null>(null)
 
-  // AI suggestion state
+  // Local copy of buckets so newly created ones appear instantly without a page reload
+  const [localBuckets, setLocalBuckets]         = useState<Bucket[]>(buckets)
   const [selectedBucketId, setSelectedBucketId] = useState<string>(transaction?.bucket_id ?? '')
-  const [aiSuggestion, setAiSuggestion]         = useState<string | null>(null)
+  const [aiSuggestion, setAiSuggestion]         = useState<CategorySuggestion | null>(null)
   const [isSuggesting, setIsSuggesting]         = useState(false)
+  const [isCreating, setIsCreating]             = useState(false)
   const [noSuggestion, setNoSuggestion]         = useState(false)
 
   // Clean up object URL on unmount to avoid memory leaks
@@ -122,22 +124,20 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  async function handleSuggestBucket() {
+  async function handleSuggestCategory() {
     const vendor = vendorRef.current?.value?.trim()
-    if (!vendor || buckets.length === 0) return
+    if (!vendor) return
     setIsSuggesting(true)
     setAiSuggestion(null)
     setNoSuggestion(false)
     try {
-      const suggestion = await suggestBucket(vendor, buckets.map(b => b.name))
+      const suggestion = await suggestCategory(vendor, localBuckets.map(b => b.name))
       if (suggestion) {
-        const matched = buckets.find(b => b.name.toLowerCase() === suggestion.toLowerCase())
-        if (matched) {
-          setAiSuggestion(matched.name)
-          setSelectedBucketId(matched.id)
-        } else {
-          setNoSuggestion(true)
+        if (suggestion.type === 'existing') {
+          const matched = localBuckets.find(b => b.name.toLowerCase() === suggestion.name.toLowerCase())
+          if (matched) setSelectedBucketId(matched.id)
         }
+        setAiSuggestion(suggestion)
       } else {
         setNoSuggestion(true)
       }
@@ -145,6 +145,24 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
       setNoSuggestion(true)
     }
     setIsSuggesting(false)
+  }
+
+  async function handleCreateAndUse(name: string) {
+    setIsCreating(true)
+    try {
+      const created = await createSuggestedCategory(budgetId, name)
+      const newBucket: Bucket = {
+        id:               created.id,
+        budget_id:        created.budget_id,
+        name:             created.name,
+        allocated_amount: created.allocated_amount,
+        created_at:       created.created_at,
+      }
+      setLocalBuckets(prev => [...prev, newBucket])
+      setSelectedBucketId(created.id)
+      setAiSuggestion(null)
+    } catch { /* silent */ }
+    setIsCreating(false)
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -214,28 +232,26 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
             placeholder="e.g. Whole Foods, AWS, Landlord"
             className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          {buckets.length > 0 && (
-            <button
-              type="button"
-              onClick={handleSuggestBucket}
-              disabled={isSuggesting}
-              title="AI-suggest a category based on vendor name"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors disabled:opacity-50 shrink-0"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {isSuggesting ? 'Thinking…' : 'Suggest Category'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleSuggestCategory}
+            disabled={isSuggesting}
+            title="AI-suggest a category based on vendor name"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {isSuggesting ? 'Thinking…' : 'Suggest Category'}
+          </button>
         </div>
       </div>
 
-      {/* AI suggestion banner */}
-      {aiSuggestion && (
+      {/* AI suggestion banners */}
+      {aiSuggestion?.type === 'existing' && (
         <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <p className="text-sm text-emerald-700 truncate">
-              <span className="font-semibold">AI suggested:</span> {aiSuggestion}
+              <span className="font-semibold">AI suggested:</span> {aiSuggestion.name}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -257,15 +273,38 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
         </div>
       )}
 
-      {/* No suggestion banner */}
+      {aiSuggestion?.type === 'new' && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+            <p className="text-sm text-purple-700 truncate">
+              <span className="font-semibold">New category:</span> {aiSuggestion.name}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleCreateAndUse(aiSuggestion.name)}
+              disabled={isCreating}
+              className="text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded transition-colors disabled:opacity-50"
+            >
+              {isCreating ? 'Creating…' : 'Create & use'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiSuggestion(null)}
+              className="shrink-0"
+            >
+              <X className="w-4 h-4 text-purple-400 hover:text-purple-600" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {noSuggestion && !aiSuggestion && (
         <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-sm text-gray-500">No matching category found — please select manually.</p>
-          <button
-            type="button"
-            onClick={() => setNoSuggestion(false)}
-            className="shrink-0"
-          >
+          <p className="text-sm text-gray-500">No suggestion found — please select manually.</p>
+          <button type="button" onClick={() => setNoSuggestion(false)} className="shrink-0">
             <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
           </button>
         </div>
@@ -281,7 +320,7 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">— Unassigned —</option>
-          {buckets.map((b) => (
+          {localBuckets.map((b) => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>

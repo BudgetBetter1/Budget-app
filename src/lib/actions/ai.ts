@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 
 // ── Shared Anthropic fetch helper ──────────────────────────────
 async function callClaude(system: string, userMessage: string): Promise<string | null> {
@@ -31,19 +32,68 @@ async function callClaude(system: string, userMessage: string): Promise<string |
   }
 }
 
-// ── AI Bucket Suggestion ───────────────────────────────────────
-export async function suggestBucket(vendor: string, bucketNames: string[]): Promise<string | null> {
-  if (!vendor.trim() || bucketNames.length === 0) return null
+// ── AI Category Suggestion ────────────────────────────────────
+export type CategorySuggestion =
+  | { type: 'existing'; name: string }   // matched an existing category
+  | { type: 'new';      name: string }   // suggests creating a new one
 
-  const text = await callClaude(
-    'You are a budget categorization assistant. Given a vendor name and a list of budget buckets, respond with ONLY the bucket name that best matches. If none match well, respond with NONE.',
-    `Vendor: ${vendor}. Available buckets: ${bucketNames.join(', ')}`
-  )
+export async function suggestCategory(
+  vendor: string,
+  categoryNames: string[],
+): Promise<CategorySuggestion | null> {
+  if (!vendor.trim()) return null
 
+  const hasExisting = categoryNames.length > 0
+
+  const system = hasExisting
+    ? `You are a budget categorization assistant. Given a vendor name and existing categories, respond with ONLY one of:
+- The exact name of the best matching category if it is a good fit
+- NEW: [Category Name] to suggest a new category if none fit well
+Keep suggested names short (1-3 words). Examples: Groceries, Dining Out, Home & Auto, Health, Subscriptions.`
+    : `You are a budget categorization assistant. Given a vendor name, suggest a short budget category (1-3 words). Respond with ONLY the category name.`
+
+  const userMsg = hasExisting
+    ? `Vendor: ${vendor}. Existing categories: ${categoryNames.join(', ')}`
+    : `Vendor: ${vendor}`
+
+  const text = await callClaude(system, userMsg)
   if (!text || text.toUpperCase() === 'NONE') return null
-  // Case-insensitive match so minor capitalisation differences don't silently fail
-  const match = bucketNames.find(n => n.toLowerCase() === text.toLowerCase())
-  return match ?? null
+
+  // Parse "NEW: Category Name"
+  if (text.startsWith('NEW:')) {
+    const newName = text.slice(4).trim()
+    return newName ? { type: 'new', name: newName } : null
+  }
+
+  // Try case-insensitive match against existing
+  if (hasExisting) {
+    const match = categoryNames.find(n => n.toLowerCase() === text.toLowerCase())
+    if (match) return { type: 'existing', name: match }
+  }
+
+  // AI returned something that doesn't match — treat as new suggestion
+  return { type: 'new', name: text }
+}
+
+// ── Create a suggested category (allocated $0, editable later) ─
+export async function createSuggestedCategory(
+  budgetId: string,
+  name: string,
+): Promise<{ id: string; name: string; allocated_amount: number; budget_id: string; created_at: string }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data, error } = await supabase
+    .from('buckets')
+    .insert({ budget_id: budgetId, name: name.trim(), allocated_amount: 0 })
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/budgets/${budgetId}`)
+  return data
 }
 
 // ── AI / String Receipt Match ──────────────────────────────────

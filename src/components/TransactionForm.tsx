@@ -73,6 +73,7 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
   const [selectedBucketId, setSelectedBucketId] = useState<string>(transaction?.bucket_id ?? '')
   const [aiSuggestion, setAiSuggestion]         = useState<string | null>(null)
   const [isSuggesting, setIsSuggesting]         = useState(false)
+  const [noSuggestion, setNoSuggestion]         = useState(false)
 
   // Clean up object URL on unmount to avoid memory leaks
   useEffect(() => {
@@ -126,16 +127,23 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
     if (!vendor || buckets.length === 0) return
     setIsSuggesting(true)
     setAiSuggestion(null)
+    setNoSuggestion(false)
     try {
       const suggestion = await suggestBucket(vendor, buckets.map(b => b.name))
       if (suggestion) {
-        const matched = buckets.find(b => b.name === suggestion)
+        const matched = buckets.find(b => b.name.toLowerCase() === suggestion.toLowerCase())
         if (matched) {
-          setAiSuggestion(suggestion)
+          setAiSuggestion(matched.name)
           setSelectedBucketId(matched.id)
+        } else {
+          setNoSuggestion(true)
         }
+      } else {
+        setNoSuggestion(true)
       }
-    } catch { /* silent — do not break the form */ }
+    } catch {
+      setNoSuggestion(true)
+    }
     setIsSuggesting(false)
   }
 
@@ -249,13 +257,27 @@ export default function TransactionForm({ budgetId, buckets, transaction }: Prop
         </div>
       )}
 
-      {/* Bucket select — controlled so AI can pre-select */}
+      {/* No suggestion banner */}
+      {noSuggestion && !aiSuggestion && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm text-gray-500">No matching category found — please select manually.</p>
+          <button
+            type="button"
+            onClick={() => setNoSuggestion(false)}
+            className="shrink-0"
+          >
+            <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+          </button>
+        </div>
+      )}
+
+      {/* Category select — controlled so AI can pre-select */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
         <select
           name="bucket_id"
           value={selectedBucketId}
-          onChange={e => { setSelectedBucketId(e.target.value); setAiSuggestion(null) }}
+          onChange={e => { setSelectedBucketId(e.target.value); setAiSuggestion(null); setNoSuggestion(false) }}
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">— Unassigned —</option>

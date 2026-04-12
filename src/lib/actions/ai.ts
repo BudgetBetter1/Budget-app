@@ -40,9 +40,10 @@ export async function suggestBucket(vendor: string, bucketNames: string[]): Prom
     `Vendor: ${vendor}. Available buckets: ${bucketNames.join(', ')}`
   )
 
-  if (!text || text === 'NONE') return null
-  // Return only if it exactly matches one of the provided bucket names
-  return bucketNames.includes(text) ? text : null
+  if (!text || text.toUpperCase() === 'NONE') return null
+  // Case-insensitive match so minor capitalisation differences don't silently fail
+  const match = bucketNames.find(n => n.toLowerCase() === text.toLowerCase())
+  return match ?? null
 }
 
 // ── AI / String Receipt Match ──────────────────────────────────

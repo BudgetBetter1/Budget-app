@@ -42,7 +42,7 @@ export default function OnboardingClient({ budgetId }: Props) {
     const trimmed = custom.trim()
     if (!trimmed || extras.includes(trimmed) || SUGGESTIONS.includes(trimmed)) return
     setExtras(prev => [...prev, trimmed])
-    setSelected(prev => new Set([...prev, trimmed]))
+    setSelected(prev => new Set([...Array.from(prev), trimmed]))
     setCustom('')
   }
 
@@ -56,7 +56,7 @@ export default function OnboardingClient({ budgetId }: Props) {
   }
 
   function handleCreate() {
-    const names = [...selected]
+    const names = Array.from(selected)
     startTransition(async () => {
       if (names.length > 0) {
         await createBulkBuckets(budgetId, names)

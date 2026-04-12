@@ -57,7 +57,7 @@ export default async function BucketDetailPage({ params }: Props) {
         <div className="flex-1 min-w-0">
           <p className="text-xs text-gray-400">
             <Link href={`/budgets/${params.id}`} className="hover:text-blue-600">{budget.name}</Link>
-            {' · '}Bucket
+            {' · '}Category
           </p>
           <h1 className="text-2xl font-bold text-gray-900 mt-0.5">{bucket.name}</h1>
         </div>
@@ -67,7 +67,7 @@ export default async function BucketDetailPage({ params }: Props) {
               'use server'
               await deleteBucket(params.bucketId, params.id)
             }}
-            label="Delete bucket"
+            label="Delete category"
             confirm={`Delete "${bucket.name}"? Transactions will become unassigned.`}
           />
         </div>
@@ -86,7 +86,7 @@ export default async function BucketDetailPage({ params }: Props) {
 
       {/* Edit bucket inline */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-8">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Edit Bucket</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Edit Category</h2>
         <BucketForm budgetId={params.id} bucket={bucket} />
       </section>
 
@@ -110,14 +110,14 @@ export default async function BucketDetailPage({ params }: Props) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {(transactions ?? []).length === 0 ? (
             <p className="text-sm text-gray-400 px-4 py-8 text-center">
-              No transactions in this bucket yet.
+              No transactions in this category yet.
             </p>
           ) : (
             <div className="divide-y divide-gray-50">
               <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-widest text-gray-400">
                 <div className="w-24">Date</div>
                 <div className="flex-1">Vendor</div>
-                <div className="hidden sm:block w-32">Bucket</div>
+                <div className="hidden sm:block w-32">Category</div>
                 <div className="w-8" />
                 <div className="w-24 text-right">Amount</div>
                 <div className="w-8" />

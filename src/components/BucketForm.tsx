@@ -35,7 +35,7 @@ export default function BucketForm({ budgetId, bucket, onDone }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Bucket Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
         <input
           name="name"
           required
@@ -67,7 +67,7 @@ export default function BucketForm({ budgetId, bucket, onDone }: Props) {
         disabled={isPending}
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2 rounded-lg transition-colors text-sm"
       >
-        {isPending ? 'Saving…' : bucket ? 'Save Changes' : 'Add Bucket'}
+        {isPending ? 'Saving…' : bucket ? 'Save Changes' : 'Add Category'}
       </button>
     </form>
   )

@@ -88,7 +88,7 @@ export default function BudgetCard({ budget }: Props) {
           </span>
           <span className="text-gray-200">·</span>
           <span className="text-xs text-gray-400">
-            {budget.bucket_count}b · {budget.transaction_count}tx
+            {budget.bucket_count} {budget.bucket_count === 1 ? 'category' : 'categories'} · {budget.transaction_count}tx
           </span>
         </div>
       </div>

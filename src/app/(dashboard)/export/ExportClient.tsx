@@ -26,7 +26,7 @@ function escapeCSV(s: string) {
 }
 
 function buildCSV(transactions: ExportTransaction[]): string {
-  const headers = ['Date', 'Vendor', 'Amount', 'Budget Name', 'Bucket Name', 'Notes', 'Has Receipt']
+  const headers = ['Date', 'Vendor', 'Amount', 'Budget Name', 'Category Name', 'Notes', 'Has Receipt']
   const rows = transactions.map(tx => [
     tx.date,
     escapeCSV(tx.vendor),
@@ -125,7 +125,7 @@ export default function ExportClient({ transactions }: Props) {
                 All transactions exported as a CSV spreadsheet.
               </p>
               <p className="text-xs text-gray-400 mt-1.5 font-mono bg-gray-50 px-2 py-1 rounded inline-block">
-                Date, Vendor, Amount, Budget Name, Bucket Name, Notes, Has Receipt
+                Date, Vendor, Amount, Budget Name, Category Name, Notes, Has Receipt
               </p>
               <p className="text-xs text-gray-400 mt-1">{transactions.length} rows</p>
             </div>
@@ -190,7 +190,7 @@ export default function ExportClient({ transactions }: Props) {
                     <th className="px-4 py-2.5 text-left">Vendor</th>
                     <th className="px-4 py-2.5 text-right">Amount</th>
                     <th className="px-4 py-2.5 text-left hidden sm:table-cell">Budget</th>
-                    <th className="px-4 py-2.5 text-left hidden sm:table-cell">Bucket</th>
+                    <th className="px-4 py-2.5 text-left hidden sm:table-cell">Category</th>
                     <th className="px-4 py-2.5 text-center">Receipt</th>
                   </tr>
                 </thead>

@@ -7,6 +7,7 @@ import DeleteButton from '@/components/DeleteButton'
 import BucketForm from '@/components/BucketForm'
 import { deleteBucket } from '@/lib/actions/buckets'
 import { TransactionWithBucket } from '@/lib/types'
+import { toTitleCase } from '@/utils/format'
 import { ArrowLeft } from 'lucide-react'
 import ProgressBar from '@/components/ProgressBar'
 import { PlusCircle } from 'lucide-react'
@@ -59,7 +60,7 @@ export default async function BucketDetailPage({ params }: Props) {
             <Link href={`/budgets/${params.id}`} className="hover:text-blue-600">{budget.name}</Link>
             {' · '}Category
           </p>
-          <h1 className="text-2xl font-bold text-gray-900 mt-0.5">{bucket.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mt-0.5">{toTitleCase(bucket.name)}</h1>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <DeleteButton
@@ -114,7 +115,7 @@ export default async function BucketDetailPage({ params }: Props) {
             </p>
           ) : (
             <div className="divide-y divide-gray-50">
-              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-widest text-gray-400">
+              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-400">
                 <div className="w-24">Date</div>
                 <div className="flex-1">Vendor</div>
                 <div className="hidden sm:block w-32">Category</div>

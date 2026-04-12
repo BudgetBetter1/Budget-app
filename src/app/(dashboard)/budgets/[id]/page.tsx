@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import StatCard from '@/components/StatCard'
 import BucketCard from '@/components/BucketCard'
 import TransactionRow from '@/components/TransactionRow'
 import DeleteButton from '@/components/DeleteButton'
 import { deleteBudget } from '@/lib/actions/budgets'
 import { BucketWithStats, TransactionWithBucket } from '@/lib/types'
-import { formatMonthYear } from '@/utils/format'
+import { formatMonthYear, formatCurrency, toTitleCase } from '@/utils/format'
 import { ArrowLeft, Pencil, PlusCircle } from 'lucide-react'
 import AddBucketInline from './AddBucketInline'
 
@@ -87,12 +86,10 @@ export default async function BudgetDetailPage({ params }: Props) {
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-              {budget.type} budget
-            </span>
+            <span className="text-xs text-gray-400 capitalize">{budget.type} budget</span>
             {subtitle && <span className="text-xs text-gray-400">· {subtitle}</span>}
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mt-0.5">{budget.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mt-0.5">{toTitleCase(budget.name)}</h1>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Link
@@ -112,17 +109,28 @@ export default async function BudgetDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <StatCard label="Total Budget"  amount={budget.total_amount} variant="blue" />
-        <StatCard label="Spent"         amount={totalSpent} />
-        <StatCard label="Remaining"     amount={remaining} variant={remaining < 0 ? 'red' : 'green'} />
+      {/* Compact stats row */}
+      <div className="flex items-center gap-0 bg-white rounded-2xl border border-gray-100 shadow-sm mb-8 overflow-hidden">
+        <div className="flex-1 px-5 py-4 text-center border-r border-gray-100">
+          <p className="text-xs text-gray-400 mb-0.5">Budget</p>
+          <p className="text-lg font-bold tabular-nums text-blue-700">{formatCurrency(budget.total_amount)}</p>
+        </div>
+        <div className="flex-1 px-5 py-4 text-center border-r border-gray-100">
+          <p className="text-xs text-gray-400 mb-0.5">Spent</p>
+          <p className="text-lg font-bold tabular-nums text-gray-900">{formatCurrency(totalSpent)}</p>
+        </div>
+        <div className="flex-1 px-5 py-4 text-center">
+          <p className="text-xs text-gray-400 mb-0.5">Remaining</p>
+          <p className={`text-lg font-bold tabular-nums ${remaining < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+            {formatCurrency(remaining)}
+          </p>
+        </div>
       </div>
 
       {/* Buckets */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-700">Categories</h2>
+          <h2 className="text-base font-semibold text-gray-800">Categories</h2>
         </div>
 
         {bucketsWithStats.length === 0 && (
@@ -166,7 +174,7 @@ export default async function BudgetDetailPage({ params }: Props) {
           ) : (
             <div className="divide-y divide-gray-50">
               {/* Table header */}
-              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-widest text-gray-400">
+              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-400">
                 <div className="w-24">Date</div>
                 <div className="flex-1">Vendor</div>
                 <div className="hidden sm:block w-32">Category</div>

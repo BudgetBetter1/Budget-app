@@ -34,7 +34,7 @@ export async function createBudget(formData: FormData) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/dashboard')
-  redirect(`/budgets/${data.id}`)
+  redirect(`/budgets/${data.id}/setup`)
 }
 
 export async function updateBudget(id: string, formData: FormData) {

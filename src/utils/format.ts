@@ -37,3 +37,7 @@ export function barColor(spent: number, allocated: number): string {
   if (ratio >= 0.8) return '#fbbf24'
   return '#3b82f6'
 }
+
+export function toTitleCase(str: string): string {
+  return str.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+}

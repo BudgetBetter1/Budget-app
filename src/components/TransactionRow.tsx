@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { TransactionWithBucket } from '@/lib/types'
-import { formatCurrency, formatDate } from '@/utils/format'
+import { formatCurrency, formatDate, toTitleCase } from '@/utils/format'
 import { Receipt, Pencil } from 'lucide-react'
 
 interface Props {
@@ -18,23 +18,27 @@ export default function TransactionRow({ tx, budgetId }: Props) {
         <p className="text-xs font-medium text-gray-500">{formatDate(tx.date)}</p>
       </div>
 
-      {/* Vendor & notes */}
+      {/* Vendor & category (mobile) / notes */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-800 truncate">
-          {tx.vendor.length > 28 ? tx.vendor.slice(0, 28) + '…' : tx.vendor}
-        </p>
+        <p className="font-medium text-gray-800 truncate">{tx.vendor}</p>
+        {/* Category shown inline on mobile, hidden on sm+ where the column exists */}
+        {tx.bucket && (
+          <p className="text-xs text-blue-500 font-medium truncate sm:hidden">
+            {toTitleCase(tx.bucket.name)}
+          </p>
+        )}
         {tx.notes && (
-          <p className="text-xs text-gray-400 truncate">
+          <p className="text-xs text-gray-400 truncate hidden sm:block">
             {tx.notes.length > 40 ? tx.notes.slice(0, 40) + '…' : tx.notes}
           </p>
         )}
       </div>
 
-      {/* Bucket badge */}
+      {/* Bucket badge — desktop only */}
       <div className="hidden sm:block w-32 shrink-0">
         {tx.bucket ? (
           <span className="inline-block text-xs bg-blue-50 text-blue-600 font-medium rounded-full px-2.5 py-0.5 truncate max-w-full">
-            {tx.bucket.name}
+            {toTitleCase(tx.bucket.name)}
           </span>
         ) : (
           <span className="text-xs text-gray-300">Unassigned</span>

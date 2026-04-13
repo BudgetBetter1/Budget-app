@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { useRouter } from 'next/navigation'
-import { Building2, RefreshCw, Plus, CheckCircle } from 'lucide-react'
+import { Building2, RefreshCw, Plus, CheckCircle, AlertCircle } from 'lucide-react'
 import { formatDate } from '@/utils/format'
 
 export interface PlaidConnection {
@@ -23,69 +23,58 @@ interface Props {
   budgets: Budget[]
 }
 
-// Inner component that actually uses usePlaidLink (must be mounted only when token exists)
-function PlaidLinkButton({
-  onSuccess,
-  onExit,
-  token,
-}: {
-  token: string
-  onSuccess: (publicToken: string, institutionName: string) => Promise<void>
-  onExit: () => void
-}) {
-  const { open, ready } = usePlaidLink({
-    token,
-    onSuccess: async (publicToken, metadata) => {
-      await onSuccess(publicToken, metadata.institution?.name ?? 'Unknown Bank')
-    },
-    onExit,
-  })
-
-  useEffect(() => {
-    if (ready) open()
-  }, [ready, open])
-
-  return null
-}
-
 export default function PlaidSection({ connections, budgets }: Props) {
   const router = useRouter()
-  const [linkToken, setLinkToken]         = useState<string | null>(null)
-  const [connecting, setConnecting]       = useState(false)
-  const [syncing, setSyncing]             = useState<string | null>(null)
-  const [syncResult, setSyncResult]       = useState<Record<string, number>>({})
+
+  const [linkToken, setLinkToken]           = useState<string | null>(null)
+  const [tokenError, setTokenError]         = useState(false)
+  const [exchanging, setExchanging]         = useState(false)
+  const [syncing, setSyncing]               = useState<string | null>(null)
+  const [syncResult, setSyncResult]         = useState<Record<string, number>>({})
   const [selectedBudget, setSelectedBudget] = useState<string>(budgets[0]?.id ?? '')
 
-  async function handleConnect() {
-    setConnecting(true)
-    try {
-      const res  = await fetch('/api/plaid/create-link-token', { method: 'POST' })
-      const data = await res.json()
-      if (data.link_token) {
-        setLinkToken(data.link_token)
-      } else {
-        setConnecting(false)
-      }
-    } catch {
-      setConnecting(false)
-    }
-  }
+  // Pre-fetch link token on mount so open() can be called synchronously on click
+  useEffect(() => {
+    fetch('/api/plaid/create-link-token', { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.link_token) {
+          setLinkToken(d.link_token)
+        } else {
+          setTokenError(true)
+        }
+      })
+      .catch(() => setTokenError(true))
+  }, [])
 
-  async function handleLinkSuccess(publicToken: string, institutionName: string) {
-    await fetch('/api/plaid/exchange-token', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ public_token: publicToken, institution_name: institutionName }),
-    })
-    setLinkToken(null)
-    setConnecting(false)
-    router.refresh()
-  }
-
-  function handleLinkExit() {
-    setLinkToken(null)
-    setConnecting(false)
-  }
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (publicToken, metadata) => {
+      setExchanging(true)
+      await fetch('/api/plaid/exchange-token', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          public_token:     publicToken,
+          institution_name: metadata.institution?.name ?? 'Unknown Bank',
+        }),
+      })
+      setExchanging(false)
+      // Refresh token so next connect works
+      fetch('/api/plaid/create-link-token', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => setLinkToken(d.link_token ?? null))
+        .catch(() => {})
+      router.refresh()
+    },
+    onExit: () => {
+      // Token is single-use — refresh it for next time
+      fetch('/api/plaid/create-link-token', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => setLinkToken(d.link_token ?? null))
+        .catch(() => {})
+    },
+  })
 
   async function handleSync(connectionId: string) {
     if (!selectedBudget) return
@@ -100,34 +89,34 @@ export default function PlaidSection({ connections, budgets }: Props) {
       const data = await res.json()
       setSyncResult(prev => ({ ...prev, [connectionId]: data.imported ?? 0 }))
       router.refresh()
-    } catch {
-      /* silent */
-    }
+    } catch { /* silent */ }
     setSyncing(null)
   }
 
+  const buttonLabel = exchanging ? 'Connecting…' : !ready ? 'Loading…' : 'Connect Bank'
+
   return (
     <div className="mb-8">
-      {/* Mount PlaidLinkButton only when we have a token — avoids stale hook */}
-      {linkToken && (
-        <PlaidLinkButton
-          token={linkToken}
-          onSuccess={handleLinkSuccess}
-          onExit={handleLinkExit}
-        />
-      )}
-
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-semibold text-gray-800">Connected Banks</h2>
         <button
-          onClick={handleConnect}
-          disabled={connecting}
+          onClick={() => open()}
+          disabled={!ready || exchanging}
           className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
-          {connecting ? 'Opening…' : 'Connect Bank'}
+          {buttonLabel}
         </button>
       </div>
+
+      {tokenError && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-sm text-red-600">
+            Could not connect to Plaid. Check that PLAID_CLIENT_ID, PLAID_SECRET, and PLAID_ENV are set in Vercel environment variables.
+          </p>
+        </div>
+      )}
 
       {connections.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
@@ -139,7 +128,6 @@ export default function PlaidSection({ connections, budgets }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Budget selector — shown when there are connections to sync */}
           {budgets.length > 0 && (
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-500 shrink-0">Import into:</label>
@@ -165,9 +153,7 @@ export default function PlaidSection({ connections, budgets }: Props) {
                   <Building2 className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-800 text-sm truncate">
-                    {conn.institution_name}
-                  </p>
+                  <p className="font-medium text-gray-800 text-sm truncate">{conn.institution_name}</p>
                   <p className="text-xs text-gray-400">
                     {conn.last_synced_at
                       ? `Last synced ${formatDate(conn.last_synced_at.split('T')[0])}`

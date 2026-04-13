@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import BudgetCard from '@/components/BudgetCard'
+import PlaidSection from '@/components/PlaidSection'
 import { BudgetWithStats } from '@/lib/types'
 import { formatCurrency } from '@/utils/format'
 import { PlusCircle, TrendingUp } from 'lucide-react'
@@ -26,6 +27,12 @@ export default async function DashboardPage() {
     .from('buckets')
     .select('id, budget_id')
     .in('budget_id', (budgets ?? []).map((b) => b.id))
+
+  const { data: plaidConnections } = await supabase
+    .from('plaid_connections')
+    .select('id, institution_name, last_synced_at, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
 
   const spendByBudget    = new Map<string, number>()
   const txCountByBudget  = new Map<string, number>()
@@ -146,6 +153,12 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Connected Banks ────────────────────────────────────── */}
+      <PlaidSection
+        connections={plaidConnections ?? []}
+        budgets={(budgets ?? []).map(b => ({ id: b.id, name: b.name }))}
+      />
 
       {/* ── Budget Grid ────────────────────────────────────────── */}
       {budgetsWithStats.length === 0 ? (
